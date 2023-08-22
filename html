@@ -1,0 +1,238 @@
+<html>
+<head>
+    <!--ALireza_faghani-->
+    <link rel="stylesheet" href="/WebResources/bootstrap5_css">
+
+
+    <title></title>
+
+
+    <style>
+        @font-face {
+            font-family: shabnam;
+            src: url(/WebResources/Font_Shabnam);
+        }
+
+        body {
+            font-family: shabnam !important;
+        }
+    </style>
+
+</head>
+<body style="overflow-wrap: break-word;">
+
+
+    <div id="buttom" class="mt-2 float-end">
+    </div>
+
+    <div style="overflow-x: hidden;" class="row w-100" id="body"></div>
+
+    <script src="/WebResources/jquery_2.1.1"></script>
+    <script>
+
+        $(document).ready()
+        {
+            button();
+            GetAllComments();
+        }
+
+        function GetAllComments() {
+            
+            var queryList = [];
+            var id = null;
+            var rulepermission = window.parent.Xrm.Page.getAttribute("Entity name");
+            var rulepermission_value = rulepermission.getValue();
+            if (rulepermission_value == null) {
+                id = window.parent.Xrm.Page.data.entity.getId().replace("{", "").replace("}", "");
+            }
+            else {
+                id = rulepermission.getValue()[0].id.replace("{", "").replace("}", "");
+            }
+            var query2 = '/api/data/v9.0/rulepermissionrequests?$select=description,_type,_ownerid_value,statuscode&$filter=activityid eq ' + id;
+            var query1 = '/api/data/v9.0/rulepermissionrequests?$select=description,_type,_ownerid_value,statuscode&$filter=__rulepermission_value eq ' + id;
+            queryList.push(query2);
+            queryList.push(query1);
+
+            queryList.forEach(RetrieveRulePermissionRequests);
+
+        }
+        function button() {
+            
+            var type_value = window.parent.frames[0].Xrm.Page.getAttribute("_type").getValue();
+            var status = window.parent.frames[0].Xrm.Page.getAttribute('statecode').getValue();
+            if (status != 1 && status != 2) { 
+            var button_div = '';
+                if (type_value != 1) {
+                    button_div += '<button type="button" onclick="CancelButton()" class="btn btn-outline-danger">رد درخواست مجوز</button>';
+                    button_div += '  ';
+                    button_div += '<button type="button" onclick="AcceptButton()" class="btn btn-outline-success">قبول درخواست مجوز</button>';
+                    $('#buttom').append(button_div);
+                }
+                if (type_value == 1) {
+                  
+                    CheckRequiredCommentor();
+                }
+               
+            }
+            
+            
+        }
+        function CheckRequiredCommentor() {
+
+            var id = window.parent.Xrm.Page.data.entity.getId().replace("{", "").replace("}", "");       
+            var button1_div = '';
+            button1_div += '<input id="openlicense" type="button" onclick="OpenPopUp()" class="btn btn-outline-success" value="اعطای مجوز">';
+            button1_div += '  ';
+            button1_div += '<button id="closelicense"  type="button" onclick="CancelButton()" class="btn btn-outline-danger">رد درخواست مجوز</button>';
+            button1_div += '<div id="openrequire" class="d-inline-block" tabindex="0" data-toggle="tooltip" title="جهت اعطای مجوز باید تمام نظرات ضروری تکمیل شود">';
+            button1_div += '<button id="openrequirebutton" class="btn btn-warning" style = "pointer-events: none;" type = "button" disabled > امکان اعطای مجوز نیست  </button >';
+            button1_div += '</div>'
+            $('#buttom').append(button1_div);
+            $('#openrequire').hide();
+            $('#openrequirebutton').hide();
+            $('#openlicense').show();
+            $('#closelicense').show();
+            window.parent.Xrm.WebApi.online.retrieveMultipleRecords("_rulepermissionrequest", "?$select=statecode,statuscode&$filter=_type eq 3 and  __rulepermission_value eq " + id).then(
+                function success(results) {
+                    debugger;
+                    for (var i = 0; i < results.entities.length; i++) {
+                        var statecode = results.entities[i]["statecode"];
+                        var statecode_formatted = results.entities[i]["statecode@OData.Community.Display.V1.FormattedValue"];
+                        var statuscode = results.entities[i]["statuscode"];
+                        if (statecode == 0) {
+                            $('#openlicense').hide();
+                            $('#closelicense').hide();
+                            $('#openrequire').show();
+                            $('#openrequirebutton').show();                        
+                            
+                        }                     
+                    }
+                   
+                },
+                function (error) {
+                    Xrm.Utility.alertDialog(error.message);
+                }
+            );
+
+        }
+        function RetrieveRulePermissionRequests(value) {
+            var req = new XMLHttpRequest();
+            req.open("GET", window.parent.Xrm.Page.context.getClientUrl() + value, true);
+            req.setRequestHeader("OData-MaxVersion", "4.0");
+            req.setRequestHeader("OData-Version", "4.0");
+            req.setRequestHeader("Accept", "application/json");
+            req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+            req.setRequestHeader("Prefer", "odata.include-annotations=\"*\"");
+            req.onreadystatechange = function () {
+
+                if (this.readyState === 4) {
+                    req.onreadystatechange = null;
+                    if (this.status === 200) {
+                        var results = JSON.parse(this.response);
+                        for (var i = 0; i < results.value.length; i++) {
+                            var stringRow = '';
+                            var description = results.value[i]["description"];
+
+                            var _type_formatted = results.value[i]["_type@OData.Community.Display.V1.FormattedValue"];
+                            var statustitle = '';
+                            var _ownerid_value = results.value[i]["_ownerid_value"];
+                            var _ownerid_value_formatted = results.value[i]["_ownerid_value@OData.Community.Display.V1.FormattedValue"];
+                            var _ownerid_value_lookuplogicalname = results.value[i]["_ownerid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+                            var statuscode = results.value[i]["statuscode"];
+                            switch (statuscode) {
+                                case 1:
+                                    statustitle = '<img src="/WebResources/_Open_icon" alt = "باز است" title="باز است"  style="FLOAT: RIGHT;MARGIN - RIGHT: 10PX;">';
+                                    break;
+                                case 2:
+                                    statustitle = '<img src="/WebResources/_Completedicon" alt = "مورد تایید است" title="مورد تایید است" style="FLOAT: RIGHT;MARGIN - RIGHT: 10PX;">';
+                                    break;
+                                case 3:
+                                    statustitle = '<img src="/WebResources/_Cancel_icon" alt = "رد شده است" title="رد شده است" style="FLOAT: RIGHT;MARGIN - RIGHT: 10PX;">';
+                                    break;
+                                case 4:
+                                    statustitle = '<img src="/WebResources/_scheduled_icon" alt = "برنامه ریزی شده است" title="برنامه ریزی شده است"> style="FLOAT: RIGHT;MARGIN - RIGHT: 10PX;"';
+                                    break;
+
+                                default:
+                                    statustitle = 'نامشخص';
+                                    break;
+                            }
+
+                            stringRow += '<div class="card w-75  m-auto mt-2 border-0">';
+                            stringRow += '<div class="card-body" style="border: 1px solid #f1f1f1;border-radius: 10px;">';
+                            stringRow += '<h6>' + _ownerid_value_formatted + "  " + '<span style="COLOR: #ff4949;FONT - SIZE: 14PX;">' + _type_formatted + '</span>' + "  " + statustitle + '</h6>';
+                            if (description != null) {
+                                stringRow += '<p style=" border: 1px solid #d4d4d53d;padding: 10px;border-radius: 20px; background: #dfdfdf3d;" id="' + _ownerid_value + '"> </p> ';
+                            }
+                            stringRow += '<span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-title="Disabled tooltip"> ';
+                            stringRow += '</span>';
+                            stringRow += '</div>';
+                            stringRow += '</div>';
+                            $('#body').append(stringRow);
+
+                            if (description != null && description != "") {
+                                $('#body').find('#' + _ownerid_value).html(description);
+                                $('#body').find('#' + _ownerid_value).html($('#body').find('#' + _ownerid_value).text());
+                            }
+                        }
+                    } else {
+                        window.parent.Xrm.Utility.alertDialog(this.statusText);
+                    }
+                }
+            };
+            req.send();
+        }
+        function OpenPopUp() {
+            var url = "WebResources/rule_permission_add_rule_html";
+            var dialogOption = {
+                width: '1000',
+                height: '800'
+            };
+            window.parent.Xrm.Internal.openDialog(url, dialogOption, null, null);
+
+        }
+        function CancelButton() {
+
+            var id = window.parent.Xrm.Page.data.entity.getId().replace("{", "").replace("}", "");
+            var entity = {};
+            entity.statecode = 2;
+            entity.statuscode = 3;
+
+            window.parent.Xrm.WebApi.online.updateRecord("_rulepermissionrequest", id, entity).then(
+                function success(result) {
+                    var updatedEntityId = result.id;
+                },
+                function (error) {
+                    Xrm.Utility.alertDialog(error.message);
+                }
+            );
+            alert("درخواست مجوز با موفقیت رد شد");
+            Reload_Page();
+
+        }
+        function AcceptButton() {
+            var id = window.parent.Xrm.Page.data.entity.getId().replace("{", "").replace("}", "");
+            var entity = {};
+            entity.statecode = 1;
+            entity.statuscode = 2;
+
+            window.parent.Xrm.WebApi.online.updateRecord("_rulepermissionrequest", id, entity).then(
+                function success(result) {
+                    var updatedEntityId = result.id;
+                },
+                function (error) {
+                    Xrm.Utility.alertDialog(error.message);
+                }
+            );l
+            alert("درخواست مجوز با موفقیت تایید شد");
+            Reload_Page();
+
+        }
+        function Reload_Page() {
+            window.parent.location.reload()
+          //  window.parent.frames[0].Xrm.Page.data.refresh();
+        }
+        
+    </script>
+</body>
+</html>
